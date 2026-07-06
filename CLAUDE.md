@@ -1,0 +1,110 @@
+# mpp-nearintents
+
+Reference implementation of the **`nearintents` payment method for MPP**
+(Machine Payments Protocol) as a TypeScript package extending
+[`mppx`](https://github.com/wevm/mppx). MPP gates HTTP resources behind
+payments (`402` + `WWW-Authenticate: Payment`); this method settles them
+cross-chain via the **NEAR Intents 1Click Swap API**: the server's 402
+challenge carries a unique single-use 1Click deposit address as `recipient`;
+the client pays the source asset on its origin chain and presents the tx hash
+as a `{type:"hash"}` credential; the server verifies the deposit and drives the
+swap to `SUCCESS` (`EXACT_OUTPUT` — the merchant receives an exact amount of
+its chosen asset on its chosen chain).
+
+**Normative wire contract:** `docs/spec/draft-nearintents-charge-00.md`
+(registered in `tempoxyz/mpp-specs` as `specs/methods/nearintents/`). Tests
+cite it. The dev plan is `DEVPLAN-nearintents-mpp-sdk-v1.md` at the repo root.
+
+## Commands
+
+- `npx pnpm@11 install` — pnpm is not installed globally (or use corepack; `packageManager` is pinned)
+- `pnpm check:types` / `pnpm lint` / `pnpm test` / `pnpm check` (all three)
+- `pnpm build` — tsc to `dist/`
+
+## Layout
+
+- `src/Types.ts` — method consts, CAIP-2/CAIP-19 helpers, request/payload/receipt schemas
+- `src/Methods.ts` — the shared `Method.from` definition (`nearintents`/`charge`)
+- `src/Errors.ts` — method-specific MPP problem types (`settlement-failed`)
+- `src/internal/OneClick.ts` — 1Click settlement core (quote/depositSubmit/status/poll, CAIP-19 ↔ 1Click asset mapping, terminal/error mapping)
+- `src/server/`, `src/client/` — `charge()` server/client methods (M2)
+- `test/` — mock 1Click server (`OneClickMock.ts`), wire-vector fixtures, e2e
+
+## Hard constraints (verified upstream — do not rediscover)
+
+1. **mppx dependency is patched.** The receipt-extensibility fix
+   (wevm/mppx#612, merged 2026-07-04) is not in any published release (latest
+   0.8.5). `patches/mppx@0.8.5.patch` applies it (`Receipt.Schema =
+   z.looseObject(shape)` so method-specific receipt fields survive
+   parse/serialize). **Drop the patch and pin the first release > 0.8.5 when
+   Dependabot flags it.** A git dep does NOT work (mppx publishes built
+   `dist/`; git installs don't run its build).
+2. **Challenge `expires` is route-static in mppx** (computed before the
+   `request` hook runs; the hook cannot set it). The quote cache must refresh
+   early: treat a cached quote as stale once `now + expiresWindow >
+   quoteDeadline` so `expires` always precedes the active quote's deadline.
+3. **The `request` hook runs on both challenge and credential requests.** On
+   credential-bearing requests, resolve the quote from the echoed challenge
+   (store lookup keyed by deposit address) — never mint a new quote there.
+4. **`stableBinding`** binds `recipient` (deposit address) + `amount` +
+   `currency` + `methodDetails.originNetwork`. A rotated quote then yields a
+   binding mismatch → 402 with a fresh challenge = the spec's client-recovery
+   flow, for free.
+5. **Replay protection:** claim `payload.hash` in-flight atomically via
+   `AtomicStore.update` (mirror tempo's `markHashUsed`); permanently consume
+   only on a terminal settlement state; give in-flight claims a TTL lease
+   (≈ expires + timeEstimate + margin) so a crashed settlement never strands a
+   legitimate retry. Requires an atomic store (memory dev / redis prod).
+6. **Never re-implement mppx core primitives** (challenge HMAC binding, JCS +
+   base64url `request` encoding, credential/receipt codecs, middleware). Build
+   test fixtures **through these APIs**, never by hand-encoding.
+7. **Client-side spec MUSTs are assertions, not docs:** verify
+   `amount`/`currency`/`recipient`/`originNetwork` and the destination leg
+   before paying; refuse past `expires`; payment policy config (allowed origin
+   networks/assets, `maxAmountIn` cap); `source` as `did:pkh`.
+
+## 1Click essentials
+
+- Base `https://1click.chaindefuser.com`; JWT via `Authorization: Bearer`
+  (env `ONE_CLICK_JWT`, server-side only — **never in any challenge field**;
+  unauthenticated costs 0.2%).
+- `POST /v0/quote` with `dry: false`, `swapType: EXACT_OUTPUT` → unique
+  single-use `depositAddress`, `amountIn` (= challenge `amount`),
+  `minAmountIn`, `deadline`, `timeEstimate`, `depositMemo?`.
+- `POST /v0/deposit/submit` `{txHash, depositAddress}` after verification —
+  optional, accelerates processing.
+- `GET /v0/status/{depositAddress}` → terminal: `SUCCESS | FAILED | REFUNDED |
+  INCOMPLETE_DEPOSIT`. Match `payload.hash` against
+  `swapDetails.originChainTxHashes` (status-observation is the v1 deposit
+  confirmation — no per-chain RPC); receipt `reference` =
+  `swapDetails.destinationChainTxHashes[0]`.
+- Wire uses CAIP-19; 1Click uses `nep141:…` asset ids. Mapping is token-list
+  driven (`GET /v0/tokens`) in `internal/OneClick.ts`; compare CAIP-19 by
+  parsed components (EVM addresses case-insensitively).
+- Error mapping: deposit below `minAmountIn` → `payment-insufficient`;
+  `FAILED`/`REFUNDED` after a verified deposit → `settlement-failed` (402 +
+  fresh challenge); deadline passed → `payment-expired`; 1Click/RPC
+  unavailable during a required check → **5xx, never `verification-failed`**,
+  and do not settle.
+
+## Guardrails
+
+- Docker is unavailable; tests are **mock-only** (in-process mock 1Click).
+  Never call live 1Click from CI or the test suite.
+- ESM-only, Biome (single quotes, no semicolons), vitest, changesets.
+- `private: true` until the npm scope decision (`@near-intents/*` vs
+  `@defuse-protocol/*`) — required before first publish, not before.
+
+## Definition of done (v1)
+
+- Spec-conformance wire vectors pass (generated through mppx primitives; both
+  example origins: Arbitrum USDC and native BTC).
+- Mock-1Click e2e green: success path; all four non-success terminals with
+  correct problem-type mapping and fresh-challenge recovery; replay +
+  concurrency invariants (same credential twice → exactly one settlement);
+  quote rotation → binding mismatch recovery.
+- `Payment-Receipt` carries `challengeId`, `originTxHash`
+  (+ `destinationNetwork`) per the spec's receipt table.
+- One real small-amount cross-chain payment via the example server (manual).
+- Reference endpoint deployed; mpp.dev method page + service-directory PRs;
+  package published under the final npm scope.

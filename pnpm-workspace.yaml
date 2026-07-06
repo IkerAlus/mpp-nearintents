@@ -1,0 +1,5 @@
+allowBuilds:
+  # esbuild's postinstall fetches its platform binary (needed by vitest).
+  esbuild: true
+patchedDependencies:
+  mppx@0.8.5: patches/mppx@0.8.5.patch

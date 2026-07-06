@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Doubles as the mppx-release watcher: the first mppx release > 0.8.5 ships
+  # the receipt-extensibility fix (wevm/mppx#612) — when Dependabot flags it,
+  # pin that version and drop patches/mppx@0.8.5.patch.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

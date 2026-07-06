@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:types
+      - run: pnpm lint
+      # Mock-only test suite — must never call live 1Click.
+      - run: pnpm test
+
+  # Early warning for mppx pre-1.0 churn: run the suite against mppx@latest.
+  # Allowed to fail — breakage here means "prepare a compat release", not "block CI".
+  mppx-latest:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm add -D mppx@latest
+      - run: pnpm check:types || true
+      - run: pnpm test
