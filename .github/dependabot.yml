@@ -1,13 +1,22 @@
 version: 2
 updates:
-  # Doubles as the mppx-release watcher: the first mppx release > 0.8.5 ships
-  # the receipt-extensibility fix (wevm/mppx#612) — when Dependabot flags it,
-  # pin that version and drop patches/mppx@0.8.5.patch.
+  # mppx is kept OUT of the group below so its bump PR stays loud: the first
+  # release > 0.8.5 ships the receipt fix (wevm/mppx#612) — when that PR
+  # appears, drop patches/mppx@0.8.5.patch + the pnpm-workspace.yaml
+  # patchedDependencies entry and pin the new version (its CI fails until
+  # then by design).
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+    groups:
+      dev-dependencies:
+        patterns: ["*"]
+        exclude-patterns: ["mppx"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

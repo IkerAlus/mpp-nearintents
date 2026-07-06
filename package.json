@@ -75,11 +75,11 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.4",
     "@changesets/cli": "^2.31.0",
-    "@types/node": "^25.6.0",
+    "@types/node": "^26.1.0",
     "mppx": "0.8.5",
     "tsx": "^4.23.0",
-    "typescript": "~5.9.3",
+    "typescript": "~6.0.3",
     "viem": "^2.54.3",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.9"
   }
 }
