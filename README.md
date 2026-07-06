@@ -25,7 +25,9 @@ any supported chain, merchants receive an exact amount on theirs. Extends
    destination-chain delivery hash.
 
 Quotes use `EXACT_OUTPUT`, so the merchant receives a deterministic amount of
-its chosen asset on its chosen chain. Settlement is not trustless: deposits
+its chosen asset on its chosen chain. 
+
+Note that settlement is not trustless: deposits
 are custodied by the NEAR Intents settlement system for the duration of the
 swap, with automatic refunds to `methodDetails.refundTo` on every non-success
 outcome. See the spec's Trust Model section.
