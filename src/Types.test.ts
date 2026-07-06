@@ -116,6 +116,18 @@ describe('ChargeRequestSchema cross-field asserts', () => {
     expect(() => Types.ChargeRequestSchema.parse({ ...valid, currency: 'USDC' })).toThrow()
   })
 
+  test('malformed asset ids fail as zod validation issues, never raw exceptions', () => {
+    // safeParse must return { success: false } — a plain Error escaping the
+    // schema would surface as an HTTP 500 instead of a 402 problem response.
+    for (const invalid of [
+      { ...valid, currency: 'USDC' },
+      { ...valid, methodDetails: { ...valid.methodDetails, destinationAsset: 'wNEAR' } },
+    ]) {
+      const result = Types.ChargeRequestSchema.safeParse(invalid)
+      expect(result.success).toBe(false)
+    }
+  })
+
   test('rejects credential types other than "hash"', () => {
     expect(() =>
       Types.ChargeRequestSchema.parse({

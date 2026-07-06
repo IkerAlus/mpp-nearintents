@@ -6,10 +6,57 @@ payments settled by [NEAR Intents](https://near-intents.org): clients pay on
 any supported chain, merchants receive an exact amount on theirs. Extends
 [`mppx`](https://github.com/wevm/mppx).
 
-> **Status: pre-release.** M0 (scaffold + conformance fixtures + mock 1Click)
-> and M1 (core modules) are complete; the server/client `charge()` methods
-> (M2), examples (M3), and distribution (M4) are in progress. Not yet
-> published to npm.
+> **Status: pre-release.** M0 (scaffold + conformance fixtures + mock 1Click),
+> M1 (core modules), and M2 (server + client `charge()` methods with the full
+> mock-1Click e2e suite) are complete. Examples + a live smoke test (M3) and
+> distribution (M4) remain. Not yet published to npm.
+
+## Usage
+
+Server (see [`src/server/Charge.ts`](src/server/Charge.ts) for all options):
+
+```ts
+import { Mppx } from 'mppx/server'
+import { nearintents } from 'mpp-nearintents/server'
+
+const mppx = Mppx.create({
+  secretKey: process.env.MPP_SECRET_KEY!,
+  methods: [
+    nearintents.charge({
+      originAsset: 'eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      destinationAsset: 'near:mainnet/nep141:1720…33a1',
+      destinationRecipient: 'merchant.near',
+      refundTo: '0x2527…C317', // merchant origin-chain refund address
+      amountOut: '1000000', // exact amount the merchant receives (EXACT_OUTPUT)
+      oneClick: { jwt: process.env.ONE_CLICK_JWT },
+      // production: store: Store.redis(client) — replay protection needs an atomic store
+    }),
+  ],
+})
+```
+
+Client (policy is the safety surface — the client pays before delivery):
+
+```ts
+import { Mppx } from 'mppx/client'
+import { nearintents } from 'mpp-nearintents/client'
+
+const mppx = Mppx.create({
+  methods: [
+    nearintents.charge({
+      walletClient, // viem WalletClient (+ public actions) for eip155 origins
+      policy: {
+        allowedOriginNetworks: ['eip155:42161'],
+        maxAmountIn: { 'eip155:42161/erc20:0xaf88…5831': '5000000' },
+      },
+    }),
+  ],
+})
+const response = await mppx.fetch('https://api.example.com/paid-resource')
+```
+
+Non-EVM origins (BTC, Solana, …) pay via the `sendDeposit` callback or present
+an already-broadcast tx hash as `context.hash`.
 
 ## How it works
 

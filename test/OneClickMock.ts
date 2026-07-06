@@ -59,6 +59,8 @@ export type QuoteScript = {
   /** Overrides the whole status sequence (each GET /v0/status consumes one, sticking on the last). */
   statuses?: SwapStatus[]
   destinationTxHash?: string
+  /** Overrides the origin-chain tx hashes reported by /v0/status (defaults to the submitted hashes). */
+  originTxHashes?: string[]
   refundReason?: string
   depositedAmount?: string
 }
@@ -113,12 +115,13 @@ export async function createOneClickMock(
     const status = state.sequence[0] ?? 'PENDING_DEPOSIT'
     if (state.sequence.length > 1) state.sequence.shift()
 
+    const originTxHashes = state.script.originTxHashes ?? state.submittedTxHashes
     const base: StatusResult = {
       status,
       updatedAt: new Date().toISOString(),
       quoteResponse: { quoteRequest: state.quoteRequest, quote: state.quote },
       swapDetails: {
-        originChainTxHashes: state.submittedTxHashes.map((hash) => ({ hash })),
+        originChainTxHashes: originTxHashes.map((hash) => ({ hash })),
         destinationChainTxHashes: [],
       },
     }
@@ -127,6 +130,7 @@ export async function createOneClickMock(
         ...base.swapDetails,
         amountIn: (state.quote.minAmountIn as string) ?? undefined,
         amountOut: (state.quoteRequest.amount as string) ?? undefined,
+        nearTxHashes: [`mock-near-${state.depositAddress}`],
         destinationChainTxHashes: [
           { hash: state.script.destinationTxHash ?? `mock-dest-${state.depositAddress}` },
         ],
@@ -238,9 +242,11 @@ export async function createOneClickMock(
         if (!state) return json(404, { message: 'Deposit address not found' })
         if (txHash && !state.submittedTxHashes.includes(txHash))
           state.submittedTxHashes.push(txHash)
-        // A submitted deposit advances the default sequence toward the
-        // scripted outcome (unless an explicit sequence was set).
-        if (!state.script.statuses)
+        // A submitted deposit advances the pristine default sequence toward
+        // the scripted outcome; sequences set via script.statuses or
+        // setStatuses() are left untouched.
+        const pristine = state.sequence.length === 1 && state.sequence[0] === 'PENDING_DEPOSIT'
+        if (!state.script.statuses && pristine)
           state.sequence = ['KNOWN_DEPOSIT_TX', 'PROCESSING', state.script.outcome ?? 'SUCCESS']
         return json(201, buildStatusResult({ ...state, sequence: [state.sequence[0]!] }))
       }

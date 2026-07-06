@@ -27,7 +27,8 @@ cite it. The dev plan is `DEVPLAN-nearintents-mpp-sdk-v1.md` at the repo root.
 - `src/Methods.ts` — the shared `Method.from` definition (`nearintents`/`charge`)
 - `src/Errors.ts` — method-specific MPP problem types (`settlement-failed`)
 - `src/internal/OneClick.ts` — 1Click settlement core (quote/depositSubmit/status/poll, CAIP-19 ↔ 1Click asset mapping, terminal/error mapping)
-- `src/server/`, `src/client/` — `charge()` server/client methods (M2)
+- `src/server/Charge.ts` — server `charge()`: quote mint + cache (early refresh), credential-path store resolution, stableBinding, verify (atomic in-flight claim → status-observation deposit confirmation → poll to terminal → extended receipt / mapped problem)
+- `src/client/Charge.ts` — client `charge()`: schema + expires + policy assertions, hash credential, built-in EVM broadcast (`walletClient`), `sendDeposit` for non-EVM origins
 - `test/` — mock 1Click server (`OneClickMock.ts`), wire-vector fixtures, e2e
 
 ## Hard constraints (verified upstream — do not rediscover)
@@ -62,6 +63,12 @@ cite it. The dev plan is `DEVPLAN-nearintents-mpp-sdk-v1.md` at the repo root.
    `amount`/`currency`/`recipient`/`originNetwork` and the destination leg
    before paying; refuse past `expires`; payment policy config (allowed origin
    networks/assets, `maxAmountIn` cap); `source` as `did:pkh`.
+8. **Post-terminal 402 nuance:** mppx computes the retry challenge BEFORE
+   `verify` runs, so the 402 returned immediately after a non-success terminal
+   echoes the just-spent quote. The client's next plain request gets a fresh
+   challenge (the cache pointer is dropped on terminal) — one extra round trip;
+   spec-recoverable and covered by the e2e suite. An upstream mppx hook to
+   re-resolve the retry challenge post-verify would remove it.
 
 ## 1Click essentials
 

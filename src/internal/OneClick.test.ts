@@ -285,6 +285,12 @@ describe('createAssetMap (CAIP-19 ↔ 1Click asset ids)', () => {
     expect(map.toAssetId('eip155:1/slip44:60')).toBe('nep141:eth.omft.near')
   })
 
+  test('slip44 with a non-canonical coin type resolves to nothing, not the native asset', () => {
+    // ETH's coin type on the Bitcoin chain must not silently map to BTC.
+    expect(map.toAssetId('bip122:000000000019d6689c085ae165831e93/slip44:60')).toBeUndefined()
+    expect(map.toAssetId('eip155:1/slip44:0')).toBeUndefined()
+  })
+
   test('nep141 assets resolve exactly on NEAR', () => {
     expect(map.toAssetId('near:mainnet/nep141:wrap.near')).toBe('nep141:wrap.near')
     expect(map.toAssetId('near:mainnet/nep141:WRAP.near')).toBeUndefined()

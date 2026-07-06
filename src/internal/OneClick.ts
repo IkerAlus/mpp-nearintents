@@ -28,6 +28,8 @@ export type Config = {
   jwt?: string | undefined
   /** Fetch implementation. @default globalThis.fetch */
   fetch?: typeof globalThis.fetch | undefined
+  /** Per-request timeout in milliseconds. @default 30000 */
+  requestTimeoutMs?: number | undefined
   /** Additional CAIP-2 → 1Click blockchain-code entries, merged over {@link defaultNetworks}. */
   networks?: Record<string, string> | undefined
   /** Additional blockchain-code → SLIP-44 coin-type entries, merged over {@link defaultNativeCoinTypes}. */
@@ -38,7 +40,11 @@ export type Config = {
 // Errors
 // ---------------------------------------------------------------------------
 
-/** The 1Click API rejected a request (HTTP 4xx application error). */
+/**
+ * The 1Click API request failed (application error or unusable response).
+ * Note {@link OneClickUnavailableError} (network failure / 5xx) is a subclass —
+ * narrow on it first when the distinction matters.
+ */
 export class OneClickError extends Error {
   override readonly name: string = 'OneClickError'
   readonly status: number
@@ -138,6 +144,8 @@ export type TransactionDetails = {
 export type SwapDetails = {
   originChainTxHashes?: TransactionDetails[] | undefined
   destinationChainTxHashes?: TransactionDetails[] | undefined
+  intentHashes?: string[] | undefined
+  nearTxHashes?: string[] | undefined
   amountIn?: string | undefined
   amountOut?: string | undefined
   depositedAmount?: string | undefined
@@ -190,6 +198,7 @@ async function request<result>(
         ...(config.jwt && { authorization: `Bearer ${config.jwt}` }),
       },
       ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
+      signal: AbortSignal.timeout(config.requestTimeoutMs ?? 30_000),
     })
   } catch (error) {
     throw new OneClickUnavailableError(`1Click request failed: ${init.method} ${path}`, {
@@ -409,6 +418,10 @@ export async function pollToTerminal(
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new Error('Aborted.'))
+      return
+    }
     const timer = setTimeout(() => {
       signal?.removeEventListener('abort', onAbort)
       resolve()
@@ -558,7 +571,9 @@ export type AssetMap = {
  * Builds a bidirectional CAIP-19 ↔ 1Click asset map from the `/v0/tokens`
  * list. Contract assets match on `contractAddress` (case-insensitively for
  * `eip155` chains); `slip44` assets match the chain's token that has no
- * `contractAddress` (chain-native).
+ * `contractAddress` (chain-native), and only for the chain's canonical coin
+ * type — a wrong coin type resolves to nothing rather than silently mapping
+ * to the native asset.
  */
 export function createAssetMap(tokens: TokenInfo[], config: Config = {}): AssetMap {
   const networks = { ...defaultNetworks, ...config.networks }
@@ -578,8 +593,11 @@ export function createAssetMap(tokens: TokenInfo[], config: Config = {}): AssetM
     const blockchain = blockchainOf(caip19Id)
     if (!blockchain) return undefined
 
-    if (parsed.assetNamespace === 'slip44')
+    if (parsed.assetNamespace === 'slip44') {
+      const coinType = nativeCoinTypes[blockchain]
+      if (coinType === undefined || parsed.assetReference !== String(coinType)) return undefined
       return tokens.find((token) => token.blockchain === blockchain && !token.contractAddress)
+    }
 
     const caseInsensitive = parsed.chain.namespace === 'eip155'
     const reference = caseInsensitive ? parsed.assetReference.toLowerCase() : parsed.assetReference

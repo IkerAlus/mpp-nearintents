@@ -62,6 +62,19 @@ export function chainOf(assetId: string): string {
   return `${chain.namespace}:${chain.reference}`
 }
 
+/**
+ * Non-throwing {@link chainOf} for schema refines: zod runs object-level
+ * checks even when a field-level check already failed, so a malformed
+ * CAIP-19 must yield `false` (a normal validation issue), not an exception.
+ */
+function chainOfSafe(assetId: string): string | undefined {
+  try {
+    return chainOf(assetId)
+  } catch {
+    return undefined
+  }
+}
+
 /** Compares two CAIP-2 identifiers by parsed components. */
 export function networkEqual(a: string, b: string): boolean {
   let left: Caip2
@@ -161,7 +174,12 @@ export type MethodDetails = z.infer<typeof MethodDetailsSchema>
  */
 export const ChargeRequestSchema = z
   .object({
-    /** Deposit amount the client is asked to send, in base units of `currency` (the quote `amountIn`). */
+    /**
+     * Deposit amount the client is asked to send, in base units of `currency`:
+     * the quote's maximum input that guarantees the merchant receives
+     * `methodDetails.amountOut` (the spec calls this `maxAmountIn`; the 1Click
+     * quote response field is `amountIn`).
+     */
     amount: atomicAmount(),
     /** Source asset the client pays with, as CAIP-19; chain component MUST equal `methodDetails.originNetwork`. */
     currency: caip19(),
@@ -174,18 +192,14 @@ export const ChargeRequestSchema = z
     methodDetails: MethodDetailsSchema,
   })
   .check(
-    z.refine(
-      (request) => networkEqual(chainOf(request.currency), request.methodDetails.originNetwork),
-      'currency chain component must equal methodDetails.originNetwork',
-    ),
-    z.refine(
-      (request) =>
-        networkEqual(
-          chainOf(request.methodDetails.destinationAsset),
-          request.methodDetails.destinationNetwork,
-        ),
-      'destinationAsset chain component must equal methodDetails.destinationNetwork',
-    ),
+    z.refine((request) => {
+      const chain = chainOfSafe(request.currency)
+      return chain !== undefined && networkEqual(chain, request.methodDetails.originNetwork)
+    }, 'currency chain component must equal methodDetails.originNetwork'),
+    z.refine((request) => {
+      const chain = chainOfSafe(request.methodDetails.destinationAsset)
+      return chain !== undefined && networkEqual(chain, request.methodDetails.destinationNetwork)
+    }, 'destinationAsset chain component must equal methodDetails.destinationNetwork'),
   )
 export type ChargeRequest = z.infer<typeof ChargeRequestSchema>
 
