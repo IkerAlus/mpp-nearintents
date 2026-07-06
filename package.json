@@ -49,6 +49,8 @@
     "changeset": "changeset",
     "check": "pnpm check:types && pnpm lint && pnpm test",
     "check:types": "tsc --noEmit",
+    "example:client": "tsx --env-file-if-exists=.env examples/client.ts",
+    "example:server": "tsx --env-file-if-exists=.env examples/server.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "prepack": "pnpm build",
@@ -75,7 +77,9 @@
     "@changesets/cli": "^2.31.0",
     "@types/node": "^25.6.0",
     "mppx": "0.8.5",
+    "tsx": "^4.23.0",
     "typescript": "~5.9.3",
+    "viem": "^2.54.3",
     "vitest": "^3.2.4"
   }
 }

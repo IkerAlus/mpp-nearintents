@@ -127,16 +127,15 @@ export declare namespace charge {
 
   /**
    * Minimal EVM wallet surface for the built-in `eip155:*` deposit broadcast.
-   * A viem `WalletClient` (with `account` and `chain` set) extended with
-   * public actions satisfies it; `waitForTransactionReceipt` is optional but
-   * strongly recommended — the spec expects a *confirmed* deposit hash.
+   * A viem `WalletClient` created with `account` and `chain` (so both default
+   * per call) and extended with public actions satisfies it;
+   * `waitForTransactionReceipt` is optional but strongly recommended — the
+   * spec expects a *confirmed* deposit hash.
    */
   type EvmWalletClient = {
     account?: { address: string } | undefined
     chain?: { id: number } | undefined
     sendTransaction: (args: {
-      account?: unknown
-      chain?: unknown
       to: `0x${string}`
       value?: bigint | undefined
       data?: `0x${string}` | undefined
@@ -242,20 +241,15 @@ async function broadcastEvmDeposit(
   const amount = BigInt(request.amount)
   const recipient = request.recipient as `0x${string}`
 
+  // account/chain are intentionally omitted — the wallet's own defaults apply
+  // (and the chain-id assertion above already pinned the network).
   const hash = await (async () => {
     if (currency.assetNamespace === 'slip44')
-      return walletClient.sendTransaction({
-        account: walletClient.account,
-        chain: walletClient.chain,
-        to: recipient,
-        value: amount,
-      })
+      return walletClient.sendTransaction({ to: recipient, value: amount })
     // ERC-20 transfer(address,uint256) calldata — 0xa9059cbb + padded args.
     const data =
       `0xa9059cbb${recipient.slice(2).toLowerCase().padStart(64, '0')}${amount.toString(16).padStart(64, '0')}` as `0x${string}`
     return walletClient.sendTransaction({
-      account: walletClient.account,
-      chain: walletClient.chain,
       to: currency.assetReference as `0x${string}`,
       data,
     })

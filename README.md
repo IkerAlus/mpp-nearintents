@@ -58,6 +58,56 @@ const response = await mppx.fetch('https://api.example.com/paid-resource')
 Non-EVM origins (BTC, Solana, …) pay via the `sendDeposit` callback or present
 an already-broadcast tx hash as `context.hash`.
 
+## Examples
+
+[`examples/server.ts`](examples/server.ts) is a two-route merchant (Arbitrum
+USDC origin with a 5-minute window, native BTC origin with a 45-minute
+window); [`examples/client.ts`](examples/client.ts) pays it — or dry-runs,
+printing the decoded challenge, when no key/hash is provided.
+
+```sh
+cp .env.example .env            # add ONE_CLICK_JWT (and merchant addresses)
+pnpm example:server             # http://localhost:8402
+pnpm example:client             # dry run: shows what /premium asks for
+pnpm example:client http://localhost:8402/premium-btc
+```
+
+To execute a real payment (real funds!): set `PRIVATE_KEY` to a funded
+Arbitrum account and run `pnpm example:client`, or send the deposit yourself
+and re-run with `DEPOSIT_TX_HASH=0x…`. The client refuses anything beyond its
+configured `policy.maxAmountIn` caps.
+
+## Operational notes
+
+- **Trust model.** Settlement is not trustless: for the duration of the swap
+  the deposit is custodied by the NEAR Intents settlement system
+  (`methodDetails.settlementBackend: "near-intents"`), which either delivers
+  the destination asset to the merchant or refunds the deposit. Comparable to
+  entrusting a payment processor with a transfer; agents applying per-method
+  risk policies can key off the `method` and `settlementBackend` fields.
+- **Refunds.** `methodDetails.refundTo` is a **merchant-configured** address
+  on the origin chain (the server cannot know the payer before payment).
+  Every non-success terminal refunds the deposit there; payers recover
+  off-band per the merchant's terms. Disclose this in your terms of service.
+- **Per-origin expiry.** Size `expiresWindow` (and the mppx route `expires`)
+  to the origin chain: minutes for fast chains, 45–60 minutes for Bitcoin.
+  The example server creates the route handler per request so the absolute
+  mppx `expires` becomes a rolling window.
+- **Per-origin minimums.** Bridged origins enforce minimum deposit amounts
+  (e.g. native BTC rides the PoA bridge, minimum ≈ a few USD at the time of
+  writing — live 1Click rejects quotes below it with `400 Amount is too low
+  for bridge`). Micro-prices belong on fast, cheap origins like Arbitrum/Base.
+- **Slow settlements.** `verify` holds the connection at most
+  `settlementTimeout` seconds, then returns **504** with a problem body —
+  the credential is *not* consumed and the client re-presents the same
+  credential later (the deposit keeps settling in the background). Backend
+  unavailability returns **503**, never `verification-failed`. Long-running
+  origins can layer a `202 Accepted`/webhook pattern on top; that is out of
+  scope for this package.
+- **After a failed settlement** the immediate 402 echoes the spent challenge
+  (mppx computes the retry challenge before `verify` runs); the client's next
+  request receives a fresh quote. Conformant clients re-request on 402.
+
 ## How it works
 
 1. The server answers an unpaid request with `402` + `WWW-Authenticate:
