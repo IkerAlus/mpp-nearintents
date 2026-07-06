@@ -6,11 +6,6 @@ payments settled by [NEAR Intents](https://near-intents.org): clients pay on
 any supported chain, merchants receive an exact amount on theirs. Extends
 [`mppx`](https://github.com/wevm/mppx).
 
-> **Status: pre-release.** M0 (scaffold + conformance fixtures + mock 1Click),
-> M1 (core modules), and M2 (server + client `charge()` methods with the full
-> mock-1Click e2e suite) are complete. Examples + a live smoke test (M3) and
-> distribution (M4) remain. Not yet published to npm.
-
 ## Usage
 
 Server (see [`src/server/Charge.ts`](src/server/Charge.ts) for all options):
