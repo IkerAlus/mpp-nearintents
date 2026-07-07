@@ -30,16 +30,17 @@ cite it. The dev plan is `DEVPLAN-nearintents-mpp-sdk-v1.md` at the repo root.
 - `src/server/Charge.ts` — server `charge()`: quote mint + cache (early refresh), credential-path store resolution, stableBinding, verify (atomic in-flight claim → status-observation deposit confirmation → poll to terminal → extended receipt / mapped problem)
 - `src/client/Charge.ts` — client `charge()`: schema + expires + policy assertions, hash credential, built-in EVM broadcast (`walletClient`), `sendDeposit` for non-EVM origins
 - `test/` — mock 1Click server (`OneClickMock.ts`), wire-vector fixtures, e2e
+- `examples/` — two-origin merchant server (`server.ts`: Arbitrum 5-min + BTC 45-min windows, rolling expires via per-request route creation) and paying client (`client.ts`: dry-run / `DEPOSIT_TX_HASH` / `PRIVATE_KEY`-viem modes); run with `pnpm example:server` / `example:client` (env in `.env`)
 
 ## Hard constraints (verified upstream — do not rediscover)
 
-1. **mppx dependency is patched.** The receipt-extensibility fix
-   (wevm/mppx#612, merged 2026-07-04) is not in any published release (latest
-   0.8.5). `patches/mppx@0.8.5.patch` applies it (`Receipt.Schema =
-   z.looseObject(shape)` so method-specific receipt fields survive
-   parse/serialize). **Drop the patch and pin the first release > 0.8.5 when
-   Dependabot flags it.** A git dep does NOT work (mppx publishes built
-   `dist/`; git installs don't run its build).
+1. **mppx ≥ 0.8.6 is required** — it ships the receipt-extensibility fix
+   (wevm/mppx#612: `Receipt.Schema = z.looseObject(shape)`) that lets the
+   spec-REQUIRED receipt fields (`challengeId`, `originTxHash`,
+   `destinationNetwork`) survive parse/serialize. 0.8.5 and earlier strip
+   them. (History: this repo carried `patches/mppx@0.8.5.patch` until 0.8.6
+   shipped on 2026-07-07.) mppx is an exact-pinned peer dep (pre-1.0 churn);
+   bump devDependency and peerDependency together.
 2. **Challenge `expires` is route-static in mppx** (computed before the
    `request` hook runs; the hook cannot set it). The quote cache must refresh
    early: treat a cached quote as stale once `now + expiresWindow >

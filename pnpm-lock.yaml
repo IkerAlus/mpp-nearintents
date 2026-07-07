@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  mppx@0.8.5: 34cbb57d8696654b270ab215a4a98f7d59eba0df7cc53665f0d10faa94b46e04
-
 importers:
 
   .:
@@ -25,8 +22,8 @@ importers:
         specifier: ^26.1.0
         version: 26.1.0
       mppx:
-        specifier: 0.8.5
-        version: 0.8.5(patch_hash=34cbb57d8696654b270ab215a4a98f7d59eba0df7cc53665f0d10faa94b46e04)(typescript@6.0.3)(viem@2.54.3(typescript@6.0.3)(zod@4.4.3))
+        specifier: 0.8.6
+        version: 0.8.6(typescript@6.0.3)(viem@2.54.3(typescript@6.0.3)(zod@4.4.3))
       tsx:
         specifier: ^4.23.0
         version: 4.23.0
@@ -801,8 +798,8 @@ packages:
     resolution: {integrity: sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA==}
     engines: {node: '>=8.6'}
 
-  mppx@0.8.5:
-    resolution: {integrity: sha512-36trgc3CCIWzPnrYKNdYGl9jszAes+wNJsRR9XPvcu3oxTBeNWe0Xol7nyETleY3YBg5FpZXSuGs1bdCq0zuXA==}
+  mppx@0.8.6:
+    resolution: {integrity: sha512-JND+libFbDer9V9oLwqohBF5TU+QNByPf7uKF6nlVniEJzmBTLpfnENO99K7PNBUZZzEOPIVjeNC1sF9FnJjUA==}
     hasBin: true
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.25.0'
@@ -1841,7 +1838,7 @@ snapshots:
       braces: 3.0.3
       picomatch: 2.3.2
 
-  mppx@0.8.5(patch_hash=34cbb57d8696654b270ab215a4a98f7d59eba0df7cc53665f0d10faa94b46e04)(typescript@6.0.3)(viem@2.54.3(typescript@6.0.3)(zod@4.4.3)):
+  mppx@0.8.6(typescript@6.0.3)(viem@2.54.3(typescript@6.0.3)(zod@4.4.3)):
     dependencies:
       '@stripe/stripe-js': 9.8.0
       eventsource-parser: 3.1.0

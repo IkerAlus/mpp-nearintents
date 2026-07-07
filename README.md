@@ -145,13 +145,11 @@ Tests are **mock-only** (in-process mock 1Click server in
 [`test/OneClickMock.ts`](test/OneClickMock.ts)); the suite never calls live
 1Click.
 
-Note: the `mppx` dependency is patched
-([`patches/mppx@0.8.5.patch`](patches/mppx@0.8.5.patch)) with the upstream
-receipt-extensibility fix ([wevm/mppx#612](https://github.com/wevm/mppx/pull/612),
-merged but not yet released) so method-specific receipt fields
-(`challengeId`, `originTxHash`, `destinationNetwork`) survive the
-`Payment-Receipt` codec. The patch is dropped as soon as the first mppx
-release > 0.8.5 ships.
+Note: `mppx` **0.8.6 or later** is required — it ships the upstream
+receipt-extensibility fix ([wevm/mppx#612](https://github.com/wevm/mppx/pull/612))
+that lets the method-specific receipt fields (`challengeId`, `originTxHash`,
+`destinationNetwork`) survive the `Payment-Receipt` codec; earlier releases
+strip them. mppx is an exact-pinned peer dependency while it is pre-1.0.
 
 ## License
 

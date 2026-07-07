@@ -34,10 +34,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Drop the 0.8.5 patch pin first — once latest > 0.8.5 the stale
-      # patchedDependencies entry would fail the install itself.
-      - run: |
-          node -e "const fs=require('fs');fs.writeFileSync('pnpm-workspace.yaml','allowBuilds:\n  esbuild: true\n')"
-          pnpm add -D mppx@latest
+      - run: pnpm add -D mppx@latest
       - run: pnpm check:types || true
       - run: pnpm test
