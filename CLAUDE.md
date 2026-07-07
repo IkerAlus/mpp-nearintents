@@ -31,6 +31,7 @@ cite it. The dev plan is `DEVPLAN-nearintents-mpp-sdk-v1.md` at the repo root.
 - `src/client/Charge.ts` — client `charge()`: schema + expires + policy assertions, hash credential, built-in EVM broadcast (`walletClient`), `sendDeposit` for non-EVM origins
 - `test/` — mock 1Click server (`OneClickMock.ts`), wire-vector fixtures, e2e
 - `examples/` — two-origin merchant server (`server.ts`: Arbitrum 5-min + BTC 45-min windows, rolling expires via per-request route creation) and paying client (`client.ts`: dry-run / `DEPOSIT_TX_HASH` / `PRIVATE_KEY`-viem modes); run with `pnpm example:server` / `example:client` (env in `.env`)
+- `demo/` — browser storefront: `demo/server` (paid modules + static serving; the deployable reference endpoint, see root `Dockerfile`) and `demo/app` (Vite React **workspace package** — declared in `pnpm-workspace.yaml` — running the real client in-browser: injected-wallet EVM path + manual-hash path). `pnpm demo:server` / `demo:app` / `demo:build`. Note: pnpm's default 24h release-age gate excludes `mppx` (`minimumReleaseAgeExclude`) because we adopt its releases same-day.
 
 ## Hard constraints (verified upstream — do not rediscover)
 

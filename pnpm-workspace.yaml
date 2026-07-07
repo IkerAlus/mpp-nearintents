@@ -1,5 +1,9 @@
+packages:
+  - demo/app
 allowBuilds:
   # esbuild's postinstall fetches its platform binary (needed by vitest).
   esbuild: true
+# We track mppx releases same-day (exact-pinned peer dep + release watcher),
+# so exempt it from pnpm's default 24h supply-chain release-age gate.
 minimumReleaseAgeExclude:
-  - mppx@0.8.6
+  - mppx

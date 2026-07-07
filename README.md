@@ -53,6 +53,14 @@ const response = await mppx.fetch('https://api.example.com/paid-resource')
 Non-EVM origins (BTC, Solana, …) pay via the `sendDeposit` callback or present
 an already-broadcast tx hash as `context.hash`.
 
+## Demo
+
+[`demo/`](demo/README.md) is a browser storefront that runs the real client in
+the page: unlock a paid endpoint with an injected EVM wallet on Arbitrum, or
+from any Bitcoin wallet by pasting the deposit txid. `pnpm demo:server` +
+`pnpm demo:app` (dev), or `pnpm demo:build && pnpm demo:server` (same-origin
+production shape; the root [`Dockerfile`](Dockerfile) packages it).
+
 ## Examples
 
 [`examples/server.ts`](examples/server.ts) is a two-route merchant (Arbitrum

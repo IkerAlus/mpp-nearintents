@@ -1,0 +1,193 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0f0e;
+  --panel: #121817;
+  --border: #23302d;
+  --text: #e8f1ee;
+  --muted: #8ba39c;
+  --accent: #00ec97;
+  --accent-dim: #0c7a55;
+  --error: #ff7a7a;
+  font-family: ui-sans-serif, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(60rem 30rem at 80% -10%, rgba(0, 236, 151, 0.08), transparent), var(--bg);
+  color: var(--text);
+}
+
+main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+h1 {
+  font-size: 1.6rem;
+  margin: 0 0 0.4rem;
+}
+
+h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.1rem;
+}
+
+h3 {
+  margin-top: 0;
+}
+
+.accent {
+  color: var(--accent);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--error);
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  word-break: break-all;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.card,
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+.card.active {
+  border-color: var(--accent-dim);
+}
+
+.panel {
+  margin-bottom: 1.5rem;
+}
+
+.pulse {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+button {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #04140d;
+  font-weight: 600;
+}
+
+button.ghost {
+  color: var(--muted);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 12rem 1fr;
+  gap: 0.45rem 1rem;
+  align-items: baseline;
+  margin: 1rem 0;
+}
+
+.grid > span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.manual {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.manual input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--text);
+  padding: 0.55rem 0.75rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
+.copyable {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+}
+
+.copy-badge {
+  color: var(--accent);
+  font-size: 0.75rem;
+}
+
+.payload {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+
+footer {
+  margin-top: 2rem;
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
