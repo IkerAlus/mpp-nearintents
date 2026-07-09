@@ -2,7 +2,7 @@
   "name": "mpp-nearintents",
   "version": "0.0.0",
   "private": true,
-  "description": "Reference implementation of the `nearintents` payment method for MPP (Machine Payments Protocol) \u2014 cross-chain HTTP 402 payments settled by NEAR Intents. Extends mppx.",
+  "description": "Reference implementation of the `nearintents` payment method for MPP (Machine Payments Protocol) — cross-chain HTTP 402 payments settled by NEAR Intents. Extends mppx.",
   "type": "module",
   "sideEffects": false,
   "license": "MIT",
@@ -76,13 +76,13 @@
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.4",
+    "@biomejs/biome": "^2.5.3",
     "@changesets/cli": "^2.31.0",
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.1.1",
     "mppx": "0.8.6",
     "tsx": "^4.23.0",
     "typescript": "~6.0.3",
-    "viem": "^2.54.3",
-    "vitest": "^4.1.9"
+    "viem": "^2.54.6",
+    "vitest": "^4.1.10"
   }
 }
