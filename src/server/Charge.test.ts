@@ -119,6 +119,20 @@ describe('402 → deposit → credential → 200 + receipt (success path)', () =
     )
     expect(mock.requests.filter((r) => r.path === '/v0/quote')).toHaveLength(1)
   })
+
+  test('every minted quote carries the "mpp" distribution-channel referral by default', async () => {
+    const { handler } = await setup()
+    await get402(handler)
+    const quoteRequest = mock.requests.find((r) => r.path === '/v0/quote')
+    expect((quoteRequest?.body as { referral?: string }).referral).toBe('mpp')
+  })
+
+  test('the referral is overridable per method instance', async () => {
+    const { handler } = await setup({ referral: 'custom-partner' })
+    await get402(handler)
+    const quoteRequest = mock.requests.find((r) => r.path === '/v0/quote')
+    expect((quoteRequest?.body as { referral?: string }).referral).toBe('custom-partner')
+  })
 })
 
 describe('non-success terminals → 402 with mapped problem type + fresh-challenge recovery', () => {

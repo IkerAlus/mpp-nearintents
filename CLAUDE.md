@@ -79,7 +79,9 @@ cite it. The dev plan is `DEVPLAN-nearintents-mpp-sdk-v1.md` at the repo root.
   unauthenticated costs 0.2%).
 - `POST /v0/quote` with `dry: false`, `swapType: EXACT_OUTPUT` → unique
   single-use `depositAddress`, `amountIn` (= challenge `amount`),
-  `minAmountIn`, `deadline`, `timeEstimate`, `depositMemo?`.
+  `minAmountIn`, `deadline`, `timeEstimate`, `depositMemo?`. Every quote the
+  server method mints carries `referral: "mpp"` (distribution-channel
+  attribution, mirrors the x402 gateway; override via `charge({ referral })`).
 - `POST /v0/deposit/submit` `{txHash, depositAddress}` after verification —
   optional, accelerates processing.
 - `GET /v0/status/{depositAddress}` → terminal: `SUCCESS | FAILED | REFUNDED |

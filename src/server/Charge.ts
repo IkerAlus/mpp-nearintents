@@ -48,7 +48,9 @@ export function charge(parameters: charge.Parameters) {
     externalId,
     oneClick = {},
     originAsset,
-    referral,
+    // Distribution-channel attribution: every 1Click swap minted by this
+    // payment method carries the "mpp" referral (mirrors the x402 gateway).
+    referral = 'mpp',
     refundTo,
     slippageTolerance = 100,
   } = parameters
@@ -103,7 +105,7 @@ export function charge(parameters: charge.Parameters) {
       destinationRecipient,
       refundTo,
       slippageTolerance,
-      referral ?? '',
+      referral,
     ].join('|')
   }
 
@@ -144,7 +146,7 @@ export function charge(parameters: charge.Parameters) {
       refundTo,
       slippageTolerance,
       deadline: requestedDeadline,
-      ...(referral !== undefined && { referral }),
+      referral,
     })
 
     // Spec §Expiry: `expires` MUST be at or before the quote deadline. The
@@ -447,7 +449,10 @@ export declare namespace charge {
     amountOut?: string | undefined
     /** Slippage tolerance in basis points, applied to the input side. @default 100 */
     slippageTolerance?: number | undefined
-    /** 1Click referral identifier for fee attribution. */
+    /**
+     * 1Click referral identifier (distribution-channel attribution / fee
+     * tracking) attached to every quote this method mints. @default "mpp"
+     */
     referral?: string | undefined
     /** Human-readable payment description for challenges. */
     description?: string | undefined
