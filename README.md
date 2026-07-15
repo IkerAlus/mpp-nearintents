@@ -1,10 +1,10 @@
 # mpp-nearintents
 
 Reference implementation of the **`nearintents` payment method** for
-[MPP (Machine Payments Protocol)](https://mpp.dev) — cross-chain HTTP 402
+[MPP (Machine Payments Protocol)](https://mpp.dev) enabling cross-chain HTTP 402
 payments settled by [NEAR Intents](https://near-intents.org): clients pay on
 any supported chain, merchants receive an exact amount on theirs. Extends
-[`mppx`](https://github.com/wevm/mppx).
+[`mppx`](https://github.com/wevm/mppx). The original spec this implementation is based on is found at [Tempo's MPP specs repository](https://github.com/tempoxyz/mpp-specs/blob/main/specs/methods/nearintents/draft-nearintents-charge-00.md).
 
 ## Usage
 
