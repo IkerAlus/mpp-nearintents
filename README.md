@@ -1,4 +1,5 @@
 **This repo has moved to defuse-protocol/nearintents-mpp-sdk**
+https://github.com/defuse-protocol/nearintents-mpp-sdk
 
 # mpp-nearintents
 
