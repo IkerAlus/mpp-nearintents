@@ -8,11 +8,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/IkerAlus/mpp-nearintents.git"
+    "url": "git+https://github.com/defuse-protocol/nearintents-mpp-sdk.git"
   },
-  "homepage": "https://github.com/IkerAlus/mpp-nearintents#readme",
+  "homepage": "https://github.com/defuse-protocol/nearintents-mpp-sdk#readme",
   "bugs": {
-    "url": "https://github.com/IkerAlus/mpp-nearintents/issues"
+    "url": "https://github.com/defuse-protocol/nearintents-mpp-sdk/issues"
   },
   "keywords": [
     "mpp",
