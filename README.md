@@ -1,3 +1,5 @@
+**This repo has moved to defuse-protocol/nearintents-mpp-sdk**
+
 # mpp-nearintents
 
 Reference implementation of the **`nearintents` payment method** for
