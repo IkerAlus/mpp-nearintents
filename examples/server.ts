@@ -40,6 +40,17 @@ const shared = {
   oneClick: { ...(jwt && { jwt }) },
 } satisfies Partial<Parameters<typeof nearintents.charge>[0]>
 
+/** Merchant-side visibility: settlement progress as one log line per event. */
+function logEvent(route: string) {
+  return (event: nearintents.charge.Event) => {
+    const { type, ...fields } = event
+    const rendered = Object.entries(fields)
+      .map(([key, value]) => `${key}=${value}`)
+      .join(' ')
+    console.log(`[${route}] ${type} ${rendered}`)
+  }
+}
+
 // Separate Mppx instances: both methods are nearintents/charge, and route
 // windows differ per origin.
 const arb = Mppx.create({
@@ -51,6 +62,7 @@ const arb = Mppx.create({
       refundTo: process.env.REFUND_TO_ARB ?? '0x2527D02599Ba641c19Fea793Cd0f9A6e8457c317',
       description: 'Premium data (pay with USDC on Arbitrum)',
       expiresWindow: 300,
+      onEvent: logEvent('premium'),
     }),
   ],
 })
@@ -72,9 +84,23 @@ const btc = Mppx.create({
       expiresWindow: 45 * 60,
       quoteDeadlineBuffer: 60 * 60,
       settlementTimeout: 120,
+      onEvent: logEvent('premium-btc'),
     }),
   ],
 })
+
+// Outcome-level events come from mppx itself.
+for (const [route, mppx] of [
+  ['premium', arb],
+  ['premium-btc', btc],
+] as const) {
+  mppx.on('payment.success', ({ receipt }) =>
+    console.log(`[${route}] payment.success reference=${receipt.reference}`),
+  )
+  mppx.on('payment.failed', ({ error }) =>
+    console.log(`[${route}] payment.failed ${error.type} — ${error.message}`),
+  )
+}
 
 async function serve(request: Request): Promise<Response> {
   const path = new URL(request.url).pathname

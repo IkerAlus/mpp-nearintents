@@ -111,6 +111,53 @@ configured `policy.maxAmountIn` caps.
   (mppx computes the retry challenge before `verify` runs); the client's next
   request receives a fresh quote. Conformant clients re-request on 402.
 
+## Observability
+
+The library never logs on its own. Merchant-side visibility comes from two
+layers:
+
+```ts
+const method = nearintents.charge({
+  // in-flight settlement progress (structured events → your logger):
+  // quote.minted / quote.reused / deposit.submitted / settlement.status /
+  // settlement.terminal / settlement.suspended / receipt.issued
+  onEvent: (event) => logger.info(event),
+  /* … */
+})
+
+const mppx = Mppx.create({ secretKey, methods: [method] })
+// outcome-level events, from mppx itself:
+mppx.on('payment.success', ({ receipt }) => logger.info(receipt))
+mppx.on('payment.failed', ({ error }) => logger.warn(error.type, error.message))
+```
+
+`settlement.suspended` (backend unavailable / settlement timeout) means the
+credential was **not** consumed and the client will re-present it. Handler
+errors are swallowed — observers can never affect payment processing. The
+example and demo servers wire `onEvent` to the console, so `pnpm
+example:server` shows each payment progressing live. Everything the events
+carry (deposit addresses, tx hashes) is public on-chain data.
+
+## Advanced: the settlement core
+
+The spec's server steps 7 ("verify deposit") and 8 ("submit + await swap
+finality") are implemented *inside* the method's `verify()` — merchants never
+call them directly, and the safety rails (atomic in-flight hash claim,
+consume-on-terminal, release-on-5xx) live in that sequence. This package uses
+**status observation** (spec §Verification step 3, second mode): 1Click
+detecting a qualifying deposit *is* the origin-chain verification, and on
+`SUCCESS` the presented `payload.hash` must appear among the backend's
+observed `originChainTxHashes`. Direct per-chain RPC verification is a
+possible future hardening hook, deliberately not part of v1.
+
+For advanced integrations (custom settlement flows, background workers, ops
+tooling), the underlying 1Click client is exported as the `OneClick`
+namespace: `quote`, `submitDeposit`, `getStatus`, `pollToTerminal`,
+`matchesOriginTx`, `destinationTxHash`, `terminalError`, plus the CAIP-19 ↔
+1Click asset mapping (`createAssetMap`). If you drive settlement yourself you
+also own replay protection — prefer re-presenting the credential to the
+method (the 503/504 flow) over hand-rolling steps 7–8.
+
 ## How it works
 
 1. The server answers an unpaid request with `402` + `WWW-Authenticate:

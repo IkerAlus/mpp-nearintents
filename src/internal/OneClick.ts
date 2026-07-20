@@ -370,6 +370,8 @@ export type PollParameters = {
   timeoutMs: number
   /** Delay between polls. @default 2000 */
   intervalMs?: number | undefined
+  /** Invoked once per observed status change (not per poll tick). */
+  onStatus?: ((status: SwapStatus) => void) | undefined
   signal?: AbortSignal | undefined
 }
 
@@ -386,7 +388,7 @@ export async function pollToTerminal(
   config: Config,
   parameters: PollParameters,
 ): Promise<StatusResult> {
-  const { depositAddress, depositMemo, signal, timeoutMs } = parameters
+  const { depositAddress, depositMemo, onStatus, signal, timeoutMs } = parameters
   const intervalMs = parameters.intervalMs ?? 2000
   const deadline = Date.now() + timeoutMs
 
@@ -397,6 +399,7 @@ export async function pollToTerminal(
     signal?.throwIfAborted()
     try {
       const result = await getStatus(config, { depositAddress, depositMemo })
+      if (result.status !== lastStatus) onStatus?.(result.status)
       lastStatus = result.status
       lastError = undefined
       if (isTerminal(result.status)) return result

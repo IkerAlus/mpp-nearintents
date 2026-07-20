@@ -135,6 +135,49 @@ describe('402 → deposit → credential → 200 + receipt (success path)', () =
     expect(quoteRequest).toBeDefined()
     expect((quoteRequest!.body as { referral?: string }).referral).toBe('custom-partner')
   })
+
+  test('onEvent reports the settlement lifecycle in order (and survives a throwing handler)', async () => {
+    const events: charge.Event[] = []
+    const { handler } = await setup({
+      onEvent: (event) => {
+        events.push(event)
+        throw new Error('observer bug — must not affect settlement')
+      },
+    })
+    const challenge = await get402(handler)
+    expect((await pay(handler, challenge, HASH)).status).toBe(200)
+
+    const types = events.map((event) => event.type)
+    expect(types[0]).toBe('quote.minted')
+    expect(types).toContain('deposit.submitted')
+    expect(types).toContain('settlement.status')
+    expect(types.indexOf('settlement.terminal')).toBeGreaterThan(types.indexOf('deposit.submitted'))
+    expect(types.at(-1)).toBe('receipt.issued')
+
+    const terminal = events.find((event) => event.type === 'settlement.terminal')
+    expect(terminal).toMatchObject({ status: 'SUCCESS', originTxHash: HASH })
+    const issued = events.find((event) => event.type === 'receipt.issued')
+    expect(issued).toMatchObject({ challengeId: challenge.id, originTxHash: HASH })
+  })
+
+  test('onEvent reports settlement.suspended on timeout (credential not consumed)', async () => {
+    const events: charge.Event[] = []
+    const { handler } = await setup({
+      settlementTimeout: 0.1,
+      pollInterval: 10,
+      onEvent: (event) => events.push(event),
+    })
+    mock.script({ statuses: ['PROCESSING'] })
+    const challenge = await get402(handler)
+    const result = await pay(handler, challenge, HASH)
+    expect(result.status).toBe(402)
+
+    expect(events.find((event) => event.type === 'settlement.suspended')).toMatchObject({
+      reason: 'timeout',
+      originTxHash: HASH,
+    })
+    expect(events.some((event) => event.type === 'settlement.terminal')).toBe(false)
+  })
 })
 
 describe('non-success terminals → 402 with mapped problem type + fresh-challenge recovery', () => {

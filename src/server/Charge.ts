@@ -55,6 +55,17 @@ export function charge(parameters: charge.Parameters) {
     slippageTolerance = 100,
   } = parameters
 
+  // Merchant observability: settlement progress is reported as structured
+  // events (the library never logs). A throwing handler must not affect
+  // payment processing.
+  const emit = (event: charge.Event): void => {
+    try {
+      parameters.onEvent?.(event)
+    } catch {
+      // Observer errors are the observer's problem.
+    }
+  }
+
   // Fail fast on malformed merchant config (throws at construction time).
   const originNetwork = Types.chainOf(originAsset)
   const destinationNetwork = Types.chainOf(destinationAsset)
@@ -126,8 +137,10 @@ export function charge(parameters: charge.Parameters) {
         deposit.state === 'active' &&
         deposit.identity === identity &&
         Date.parse(deposit.deadline) > Date.now() + expiresWindowMs
-      )
+      ) {
+        emit({ type: 'quote.reused', depositAddress: deposit.request.recipient })
         return deposit.request
+      }
     }
 
     const [originAssetId, destinationAssetId] = await Promise.all([
@@ -188,6 +201,16 @@ export function charge(parameters: charge.Parameters) {
       state: 'active',
     })
     await store.put(quoteKey(identity), { identity, depositAddress: quote.depositAddress })
+
+    emit({
+      type: 'quote.minted',
+      depositAddress: quote.depositAddress,
+      amountIn: quote.amountIn,
+      minAmountIn: quote.minAmountIn,
+      amountOut,
+      deadline: quote.deadline,
+      timeEstimate: quote.timeEstimate,
+    })
 
     return request
   }
@@ -335,11 +358,15 @@ export function charge(parameters: charge.Parameters) {
       try {
         // Spec §Settlement step 1: notify the backend (optional accelerator;
         // status observation below is authoritative, so failures are benign).
-        await OneClick.submitDeposit(oneClick, {
+        const accepted = await OneClick.submitDeposit(oneClick, {
           txHash: hash,
           depositAddress: recipient,
           ...(deposit.depositMemo !== null && { memo: deposit.depositMemo }),
-        }).catch(() => undefined)
+        }).then(
+          () => true,
+          () => false,
+        )
+        emit({ type: 'deposit.submitted', depositAddress: recipient, originTxHash: hash, accepted })
 
         // Spec §Settlement step 2 + §Verification step 3: poll to a terminal
         // status; the backend detecting a qualifying deposit at `recipient`
@@ -349,10 +376,21 @@ export function charge(parameters: charge.Parameters) {
           ...(deposit.depositMemo !== null && { depositMemo: deposit.depositMemo }),
           timeoutMs: settlementTimeoutMs,
           intervalMs: pollIntervalMs,
+          onStatus: (observed) =>
+            emit({ type: 'settlement.status', depositAddress: recipient, status: observed }),
         })
 
         // Any terminal state spends the quote and its deposit address.
         await retireDeposit(recipient, deposit.identity)
+        emit({
+          type: 'settlement.terminal',
+          depositAddress: recipient,
+          originTxHash: hash,
+          status: status.status,
+          ...(OneClick.destinationTxHash(status) !== undefined && {
+            destinationTxHash: OneClick.destinationTxHash(status),
+          }),
+        })
 
         if (status.status === 'SUCCESS') {
           // Deposit confirmation: the presented hash must be among the
@@ -371,13 +409,21 @@ export function charge(parameters: charge.Parameters) {
             throw new Error(
               `mpp-nearintents: swap for ${recipient} reached SUCCESS but reported no settlement transaction hash.`,
             )
-          return Types.toReceipt({
+          const receipt = Types.toReceipt({
             challengeId: challenge.id,
             reference,
             originTxHash: hash,
             destinationNetwork: resolved.methodDetails.destinationNetwork,
             ...(resolved.externalId !== undefined && { externalId: resolved.externalId }),
           })
+          emit({
+            type: 'receipt.issued',
+            challengeId: challenge.id,
+            depositAddress: recipient,
+            originTxHash: hash,
+            reference,
+          })
+          return receipt
         }
 
         // Non-success terminal (FAILED/REFUNDED/INCOMPLETE_DEPOSIT): the
@@ -392,10 +438,24 @@ export function charge(parameters: charge.Parameters) {
         // Backend unavailability / settlement timeout: 5xx, never
         // verification-failed; do not settle, release the claim so the same
         // credential can be re-presented.
-        if (error instanceof OneClick.OneClickUnavailableError)
+        if (error instanceof OneClick.OneClickUnavailableError) {
+          emit({
+            type: 'settlement.suspended',
+            depositAddress: recipient,
+            originTxHash: hash,
+            reason: 'unavailable',
+          })
           throw new SettlementUnavailableError({ reason: error.message })
-        if (error instanceof OneClick.PollTimeoutError)
+        }
+        if (error instanceof OneClick.PollTimeoutError) {
+          emit({
+            type: 'settlement.suspended',
+            depositAddress: recipient,
+            originTxHash: hash,
+            reason: 'timeout',
+          })
           throw new SettlementTimeoutError({ timeoutMs: settlementTimeoutMs })
+        }
         throw error
       } finally {
         if (hashOutcome === 'consume') await store.put(hashKey(hash), { state: 'consumed' })
@@ -406,6 +466,48 @@ export function charge(parameters: charge.Parameters) {
 }
 
 export declare namespace charge {
+  /**
+   * Structured settlement-progress events for merchant observability (wire
+   * them to your logger via `charge({ onEvent })`). All referenced values —
+   * deposit addresses and tx hashes — are public on-chain data. Outcome-level
+   * events (`payment.success` / `payment.failed` / `challenge.created`) come
+   * from mppx itself via `mppx.on(...)`.
+   */
+  type Event =
+    | {
+        type: 'quote.minted'
+        depositAddress: string
+        amountIn: string
+        minAmountIn: string
+        amountOut: string
+        deadline: string
+        timeEstimate: number
+      }
+    | { type: 'quote.reused'; depositAddress: string }
+    | { type: 'deposit.submitted'; depositAddress: string; originTxHash: string; accepted: boolean }
+    | { type: 'settlement.status'; depositAddress: string; status: OneClick.SwapStatus }
+    | {
+        type: 'settlement.terminal'
+        depositAddress: string
+        originTxHash: string
+        status: OneClick.SwapStatus
+        destinationTxHash?: string | undefined
+      }
+    | {
+        type: 'settlement.suspended'
+        depositAddress: string
+        originTxHash: string
+        /** The credential was NOT consumed; the client re-presents it later. */
+        reason: 'unavailable' | 'timeout'
+      }
+    | {
+        type: 'receipt.issued'
+        challengeId: string
+        depositAddress: string
+        originTxHash: string
+        reference: string
+      }
+
   type DepositState = {
     identity: string
     request: Types.ChargeRequest
@@ -454,6 +556,12 @@ export declare namespace charge {
      * tracking) attached to every quote this method mints. @default "mpp"
      */
     referral?: string | undefined
+    /**
+     * Settlement-progress observer ({@link charge.Event}) — the library never
+     * logs on its own; wire this to your logger. Handler errors are swallowed
+     * and never affect payment processing.
+     */
+    onEvent?: ((event: Event) => void) | undefined
     /** Human-readable payment description for challenges. */
     description?: string | undefined
     /** Merchant reference echoed into challenges and receipts. */
